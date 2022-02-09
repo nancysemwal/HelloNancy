@@ -12,23 +12,17 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.hellonancy.ui.theme.HelloNancyTheme
 import android.hardware.usb.UsbDevice
-import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
-import android.os.CountDownTimer
 import android.util.Log
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat.getSystemService
 
 
 class MainActivity : ComponentActivity() {
@@ -36,6 +30,11 @@ class MainActivity : ComponentActivity() {
 
         val helloViewModel by viewModels<HelloViewModel>()
         super.onCreate(savedInstanceState)
+
+        var deviceList: ArrayList<UsbDevice> = ArrayList()
+        val usbManager:UsbManager? = getSystemService(Context.USB_SERVICE) as UsbManager?
+        for (device in usbManager?.deviceList?.values!!){
+        }
         setContent {
             HelloNancyTheme {
                 // A surface container using the 'background' color from the theme
@@ -45,6 +44,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
 class HelloViewModel : ViewModel(){
     private val _name : MutableLiveData<String> = MutableLiveData("")
     val name = _name
@@ -53,19 +53,20 @@ class HelloViewModel : ViewModel(){
     private val _pitch = MutableLiveData<Int>()
     private var count = 0*/
 
-    /*val timer = object : CountDownTimer(10000, 1000){
-        override fun onTick(millisUntilFinished: Long) {
-            _pitch.value = millisUntilFinished
-        }
-
-        override fun onFinish() {
-            _pitch.value = 0
-        }
-    }*/
-
     private val _pitch : MutableLiveData<Int> = MutableLiveData(0)
     val pitchLiveData = _pitch
     private var count = 0
+    /*val timer = object : CountDownTimer(10000, 1000){
+        override fun onTick(millisUntilFinished: Long) {
+            Log.d("WATCH", "in onTick")
+            _pitch.value = millisUntilFinished.toInt()
+        }
+
+        override fun onFinish() {
+            Log.d("WATCH", "in onFinish")
+            _pitch.value = 0
+        }
+    }.start()*/
 
     fun onNameChange(newName : String){
         _name.value = newName
@@ -82,6 +83,7 @@ class HelloViewModel : ViewModel(){
 fun HelloScreen(helloViewModel: HelloViewModel){
     val name by helloViewModel.name.observeAsState("")
     val pitch by helloViewModel.pitchLiveData.observeAsState(0)
+
     /*var name : String by rememberSaveable{
         mutableStateOf("")
     }*/
@@ -90,6 +92,15 @@ fun HelloScreen(helloViewModel: HelloViewModel){
         name = name,
         onNameChange = { helloViewModel.onNameChange(it) }
     )*/
+
+    val context = LocalContext.current
+    val usbManager:UsbManager? = context.getSystemService(Context.USB_SERVICE) as UsbManager?
+    val deviceList = usbManager?.deviceList?.values
+    if(deviceList != null){
+        for(device in deviceList){
+            Device(deviceName = device.deviceName)
+        }
+    }
 
     PitchContent(
         pitch = pitch,
@@ -129,12 +140,20 @@ fun PitchContent(pitch: Int, onClick: () -> Unit = {}){
             Text(
                 text = pitch.toString(),
                 style = MaterialTheme.typography.body1,
+                modifier = Modifier.padding(8.dp)
             )
         }
         Button(onClick = onClick)
             {
                     Text(text = "Update")
             }
+    }
+}
+
+@Composable
+fun Device(deviceName: String){
+    Column{
+        Text(text = deviceName)
     }
 }
 
