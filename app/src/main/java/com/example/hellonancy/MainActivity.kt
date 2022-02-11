@@ -1,10 +1,17 @@
 package com.example.hellonancy
 
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.hardware.usb.UsbDeviceConnection
+import android.hardware.usb.UsbManager
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
@@ -13,17 +20,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.hellonancy.ui.theme.HelloNancyTheme
-import android.hardware.usb.UsbDevice
-import android.hardware.usb.UsbManager
-import android.util.Log
-import androidx.compose.foundation.layout.*
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat.getSystemService
-
+import com.felhr.usbserial.UsbSerialDevice
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,10 +33,10 @@ class MainActivity : ComponentActivity() {
         val helloViewModel by viewModels<HelloViewModel>()
         super.onCreate(savedInstanceState)
 
-        var deviceList: ArrayList<UsbDevice> = ArrayList()
-        val usbManager:UsbManager? = getSystemService(Context.USB_SERVICE) as UsbManager?
-        for (device in usbManager?.deviceList?.values!!){
-        }
+        //var deviceList: ArrayList<UsbDevice> = ArrayList()
+        //val usbManager:UsbManager? = getSystemService(Context.USB_SERVICE) as UsbManager?
+        //for (device in usbManager?.deviceList?.values!!){
+        //}
         setContent {
             HelloNancyTheme {
                 // A surface container using the 'background' color from the theme
@@ -92,19 +94,25 @@ fun HelloScreen(helloViewModel: HelloViewModel){
         name = name,
         onNameChange = { helloViewModel.onNameChange(it) }
     )*/
-
+    val ACTION_USB_PERMISSION: String = "com.android.example.USB_PERMISSION"
+    val intent : Intent = Intent(ACTION_USB_PERMISSION)
     val context = LocalContext.current
     val usbManager:UsbManager? = context.getSystemService(Context.USB_SERVICE) as UsbManager?
     val deviceList = usbManager?.deviceList?.values
     if(deviceList != null){
         for(device in deviceList){
-            Device(deviceName = device.deviceName)
+            val connection : UsbDeviceConnection = usbManager.openDevice(device)
+            val serialPort = UsbSerialDevice.createUsbSerialDevice(device, connection)
+            val pendingIntent : PendingIntent = PendingIntent.getBroadcast(context, 0,
+                intent, 0)
+            usbManager.requestPermission(device, pendingIntent)
+            Device(deviceName = connection.toString())
         }
     }
 
-    PitchContent(
+    /*PitchContent(
         pitch = pitch,
-        onClick = {helloViewModel.updateCount()})
+        onClick = {helloViewModel.updateCount()})*/
 }
 
 @Composable
