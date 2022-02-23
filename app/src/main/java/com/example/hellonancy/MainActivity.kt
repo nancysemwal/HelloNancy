@@ -4,6 +4,8 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
 import android.os.Bundle
@@ -28,24 +30,79 @@ import com.example.hellonancy.ui.theme.HelloNancyTheme
 import com.felhr.usbserial.UsbSerialDevice
 
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
 
-        val helloViewModel by viewModels<HelloViewModel>()
-        super.onCreate(savedInstanceState)
+    private val ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION"
+    lateinit var usbConnection : UsbDeviceConnection
+    lateinit var serialPort : UsbSerialDevice
+    private val usbReceiver = object : BroadcastReceiver() {
 
-        //var deviceList: ArrayList<UsbDevice> = ArrayList()
-        //val usbManager:UsbManager? = getSystemService(Context.USB_SERVICE) as UsbManager?
-        //for (device in usbManager?.deviceList?.values!!){
-        //}
-        setContent {
-            HelloNancyTheme {
-                // A surface container using the 'background' color from the theme
-                HelloScreen(helloViewModel)
+        override fun onReceive(context: Context, intent: Intent) {
+            if (ACTION_USB_PERMISSION == intent.action) {
+                synchronized(this) {
+                    val device: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+
+                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                        device?.apply {
+                            //call method to set up device communication
+                            Log.d("SERVICE", "Success")
+                            usbConnection = usbManager.openDevice(device)
+                            serialPort = UsbSerialDevice.createUsbSerialDevice(device, usbConnection)
+                        }
+                    } else {
+                        Log.d("SERVICE", "permission denied for device $device")
+                    }
+                }
             }
         }
     }
+
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+
+        super.onCreate(savedInstanceState)
+        val filter = IntentFilter(ACTION_USB_PERMISSION)
+        registerReceiver(usbReceiver, filter)
+        setContent {
+            HelloNancyTheme {
+                // A surface container using the 'background' color from the theme
+                //HelloScreen(helloViewModel)
+                val deviceList: HashMap<String, UsbDevice> = usbManager.deviceList
+                val ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION"
+                val intent : Intent = Intent(ACTION_USB_PERMISSION)
+                val context = LocalContext.current
+
+                deviceList.values.forEach(){
+                    //Device(deviceName = it.deviceName)
+                    val pendingIntent = PendingIntent.getBroadcast(context, 0, intent
+                        , 0)
+                    usbManager.requestPermission(it, pendingIntent)
+                }
+
+                //MainScreen(usbManager = usbManager)
+            }
+        }
+    }
+    private val usbManager by lazy {
+        getSystemService(Context.USB_SERVICE) as UsbManager
+    }
+
 }
 
+@Composable
+fun MainScreen(usbManager: UsbManager){
+    val deviceList: HashMap<String, UsbDevice> = usbManager.deviceList
+    val ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION"
+    val intent : Intent = Intent(ACTION_USB_PERMISSION)
+    val context = LocalContext.current
+
+    deviceList.values.forEach(){
+        Device(deviceName = it.deviceName)
+        val pendingIntent = PendingIntent.getBroadcast(context, 0, intent
+        , 0)
+        usbManager.requestPermission(it, pendingIntent)
+    }
+
+}
 
 class HelloViewModel : ViewModel(){
     private val _name : MutableLiveData<String> = MutableLiveData("")
