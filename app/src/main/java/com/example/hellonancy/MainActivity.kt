@@ -54,10 +54,11 @@ class MainActivity : ComponentActivity() {
         getSystemService(Context.USB_SERVICE) as UsbManager
     }
 
+
     private val ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION"
-    lateinit var usbConnection : UsbDeviceConnection
+    /*lateinit var usbConnection : UsbDeviceConnection
     lateinit var serialPort : UsbSerialDevice
-    lateinit var mavlinkConn: MavlinkConnection
+    lateinit var mavlinkConn: MavlinkConnection*/
     private val usbReceiver = object : BroadcastReceiver() {
 
         override fun onReceive(context: Context, intent: Intent) {
@@ -69,12 +70,13 @@ class MainActivity : ComponentActivity() {
                         device?.apply {
                             //call method to set up device communication
                             Log.d("SERVICE", "Success")
-                            //helloviewmodel.openDevice
-                            usbConnection = usbManager.openDevice(device)
+                            //usbConnection = usbManager.openDevice(device)
+                            helloViewModel.device = device
+                            helloViewModel.usbConnection = usbManager.openDevice(device)
                             helloViewModel.connectedStatus.value = "Connected"
-                            serialPort = UsbSerialDevice.createUsbSerialDevice(device, usbConnection)
-
-                            if(serialPort != null){
+                            //serialPort = UsbSerialDevice.createUsbSerialDevice(device, usbConnection)
+                            helloViewModel.startConn()
+                            /*if(serialPort != null){
                                 if(serialPort.syncOpen()){
                                     serialPort.setBaudRate(57600)
                                     var input : SerialInputStream = serialPort.inputStream
@@ -90,7 +92,7 @@ class MainActivity : ComponentActivity() {
                                     mavlinkConn.send2(255, 0, message)
                                     helloViewModel.connection.value = "Streams requested"
                                 }
-                            }
+                            }*/
                         }
                     } else {
                         Log.d("SERVICE", "permission denied for device $device")
@@ -107,10 +109,7 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(usbManager: UsbManager, helloViewModel: HelloViewModel){
     val connectedStatus by helloViewModel.connectedStatus.observeAsState("Not Connected")
     val connection by helloViewModel.connection.observeAsState("")
-    val pitch by helloViewModel.pitch.observeAsState(0)
-    /*val (connectedStatus, setConnectedStatus) = remember {
-        mutableStateOf("Not Connected")
-    }*/
+    val pitch by helloViewModel.pitch.observeAsState(0F)
     val deviceList: HashMap<String, UsbDevice> = usbManager.deviceList
     val ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION"
     val intent : Intent = Intent(ACTION_USB_PERMISSION)
@@ -126,6 +125,7 @@ fun MainScreen(usbManager: UsbManager, helloViewModel: HelloViewModel){
         Text(text = connectedStatus)
         Text(text = connection)
         Pitch(pitch = pitch as Float)
+        //Pitch(pitch = pitch)
     }
 
 
@@ -134,12 +134,49 @@ fun MainScreen(usbManager: UsbManager, helloViewModel: HelloViewModel){
 class HelloViewModel : ViewModel(){
     private val _connectedStatus = MutableLiveData("Not Connected")
     var connectedStatus = _connectedStatus
-    private val _connection = MutableLiveData("")
+    private var _connection = MutableLiveData("")
     var connection = _connection
     private val _name : MutableLiveData<String> = MutableLiveData("")
     val name = _name
-    private val _pitch = MutableLiveData<Float>(0F)
+    private var _pitch = MutableLiveData<Float>(0F)
     val pitch = _pitch
+    /*private val _pitch = MutableLiveData<Int>(0)
+    val pitch = _pitch*/
+
+    var usbConnection : UsbDeviceConnection? = null
+    var device : UsbDevice? = null
+    var serialPort : UsbSerialDevice? = null
+    private lateinit var mavlinkConn : MavlinkConnection
+
+    fun startConn(){
+        if(device != null && usbConnection != null)
+        {
+            serialPort = UsbSerialDevice.createUsbSerialDevice(device,usbConnection)
+        }
+        if(serialPort != null){
+            if(serialPort!!.syncOpen()){
+                serialPort!!.setBaudRate(57600)
+                var input : SerialInputStream = serialPort!!.inputStream
+                var output : SerialOutputStream = serialPort!!.outputStream
+                mavlinkConn = MavlinkConnection.create(input, output)
+                var message : RequestDataStream = RequestDataStream.builder()
+                    .targetSystem(1)
+                    .targetComponent(0)
+                    .reqStreamId(0)
+                    .reqMessageRate(1)
+                    .startStop(1)
+                    .build()
+                mavlinkConn.send2(255, 0, message)
+                var mavMessage : MavlinkMessage<*>
+                while (mavlinkConn.next() != null){
+                    mavMessage = mavlinkConn.next()
+                    if(mavMessage.payload is Attitude){
+                        _pitch.value = (mavMessage.payload as Attitude).pitch()
+                    }
+                }
+            }
+        }
+    }
 
     /*val pitchLiveData : LiveData<Int> get() = _pitch
     private val _pitch = MutableLiveData<Int>()
