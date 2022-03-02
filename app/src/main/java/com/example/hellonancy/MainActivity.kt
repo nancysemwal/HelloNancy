@@ -70,29 +70,10 @@ class MainActivity : ComponentActivity() {
                         device?.apply {
                             //call method to set up device communication
                             Log.d("SERVICE", "Success")
-                            //usbConnection = usbManager.openDevice(device)
+                            helloViewModel.connectedStatus.value = "Connected"
                             helloViewModel.device = device
                             helloViewModel.usbConnection = usbManager.openDevice(device)
-                            helloViewModel.connectedStatus.value = "Connected"
-                            //serialPort = UsbSerialDevice.createUsbSerialDevice(device, usbConnection)
                             helloViewModel.startConn()
-                            /*if(serialPort != null){
-                                if(serialPort.syncOpen()){
-                                    serialPort.setBaudRate(57600)
-                                    var input : SerialInputStream = serialPort.inputStream
-                                    var output : SerialOutputStream = serialPort.outputStream
-                                    mavlinkConn = MavlinkConnection.create(input, output)
-                                    var message : RequestDataStream = RequestDataStream.builder()
-                                        .targetSystem(1)
-                                        .targetComponent(0)
-                                        .reqStreamId(0)
-                                        .reqMessageRate(1)
-                                        .startStop(1)
-                                        .build()
-                                    mavlinkConn.send2(255, 0, message)
-                                    helloViewModel.connection.value = "Streams requested"
-                                }
-                            }*/
                         }
                     } else {
                         Log.d("SERVICE", "permission denied for device $device")
@@ -109,7 +90,8 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(usbManager: UsbManager, helloViewModel: HelloViewModel){
     val connectedStatus by helloViewModel.connectedStatus.observeAsState("Not Connected")
     val connection by helloViewModel.connection.observeAsState("")
-    val pitch by helloViewModel.pitch.observeAsState(0F)
+    //val pitch by helloViewModel.pitch.observeAsState(0F)
+    val pitch by helloViewModel.pitch.observeAsState("")
     val deviceList: HashMap<String, UsbDevice> = usbManager.deviceList
     val ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION"
     val intent : Intent = Intent(ACTION_USB_PERMISSION)
@@ -124,11 +106,9 @@ fun MainScreen(usbManager: UsbManager, helloViewModel: HelloViewModel){
     Column() {
         Text(text = connectedStatus)
         Text(text = connection)
-        Pitch(pitch = pitch as Float)
-        //Pitch(pitch = pitch)
+        //Pitch(pitch = pitch as Float)
+        Pitch(pitch = pitch)
     }
-
-
 }
 
 class HelloViewModel : ViewModel(){
@@ -138,10 +118,12 @@ class HelloViewModel : ViewModel(){
     var connection = _connection
     private val _name : MutableLiveData<String> = MutableLiveData("")
     val name = _name
-    private var _pitch = MutableLiveData<Float>(0F)
-    val pitch = _pitch
-    /*private val _pitch = MutableLiveData<Int>(0)
+    /*private var _pitch = MutableLiveData(0F)
     val pitch = _pitch*/
+    private val _pitch = MutableLiveData<String>("")
+    val pitch = _pitch
+    var count = 0
+    var lastVal = ""
 
     var usbConnection : UsbDeviceConnection? = null
     var device : UsbDevice? = null
@@ -167,13 +149,22 @@ class HelloViewModel : ViewModel(){
                     .startStop(1)
                     .build()
                 mavlinkConn.send2(255, 0, message)
-                var mavMessage : MavlinkMessage<*>
+                var mavMessage : MavlinkMessage<*> = mavlinkConn.next()
+                //_pitch.value = mavMessage.payload::class.simpleName
+                _pitch.value = count.toString() + ", " + lastVal// + ", " + mavMessage.payload::class.simpleName
+                ++count
+                if (mavMessage.payload::class.simpleName == "Attitude"){
+                    //++count
+                    lastVal = (mavMessage.payload as Attitude).pitch().toString()
+                    //_pitch.value = count.toString() + ", " + mavMessage.payload::class.simpleName + ", " +
+                    //_pitch.value = "inside if"
+                    //_pitch.value = (mavMessage.payload as Attitude).pitch().toString()
+                }
+                /*var mavMessage : MavlinkMessage<*>
                 while (mavlinkConn.next() != null){
                     mavMessage = mavlinkConn.next()
-                    if(mavMessage.payload is Attitude){
-                        _pitch.value = (mavMessage.payload as Attitude).pitch()
-                    }
-                }
+                    _pitch.value = mavMessage.payload::class.simpleName
+                }*/
             }
         }
     }
@@ -261,7 +252,7 @@ fun HelloContent(name: String, onNameChange: (String) -> Unit){
     }
 }
 @Composable
-fun Pitch(pitch: Float){
+fun Pitch(pitch: String){
     Column() {
         Row(modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween){
@@ -272,7 +263,7 @@ fun Pitch(pitch: Float){
             )
 
             Text(
-                text = pitch.toString(),
+                text = pitch,
                 style = MaterialTheme.typography.body1,
                 modifier = Modifier.padding(8.dp)
             )
