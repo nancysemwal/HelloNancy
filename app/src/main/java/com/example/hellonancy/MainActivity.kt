@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.hellonancy.ui.theme.HelloNancyTheme
@@ -113,7 +114,7 @@ fun MainScreen(usbManager: UsbManager, helloViewModel: HelloViewModel){
 
 class HelloViewModel : ViewModel(){
     private val _connectedStatus = MutableLiveData("Not Connected")
-    var connectedStatus = _connectedStatus
+    val connectedStatus = _connectedStatus
     private var _connection = MutableLiveData("")
     var connection = _connection
     private val _name : MutableLiveData<String> = MutableLiveData("")
@@ -121,7 +122,7 @@ class HelloViewModel : ViewModel(){
     /*private var _pitch = MutableLiveData(0F)
     val pitch = _pitch*/
     private val _pitch = MutableLiveData<String>("")
-    val pitch = _pitch
+    val pitch : LiveData<String>  = _pitch
     var count = 0
     var lastVal = ""
 
@@ -152,7 +153,7 @@ class HelloViewModel : ViewModel(){
                 var mavMessage : MavlinkMessage<*> = mavlinkConn.next()
                 //_pitch.value = mavMessage.payload::class.simpleName
                 _pitch.value = count.toString() + ", " + lastVal// + ", " + mavMessage.payload::class.simpleName
-                ++count
+                //count++
                 if (mavMessage.payload::class.simpleName == "Attitude"){
                     //++count
                     lastVal = (mavMessage.payload as Attitude).pitch().toString()
